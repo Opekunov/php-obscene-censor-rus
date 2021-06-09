@@ -115,18 +115,42 @@ class ObsceneCensorRus {
         'чаепитие',
     );
 
-    public static function getFiltered($text, $charset = 'UTF-8') {
-        self::filterText($text, $charset);
+	/**
+	 * @param string $text
+	 * @param array  $addExceptions
+	 * @param string $charset
+	 *
+	 * @return string
+	 */
+    public static function getFiltered(string $text, array $addExceptions = [], string $charset = 'UTF-8'): string
+	{
+        self::filterText($text, $addExceptions, $charset);
         return $text;
     }
 
-    public static function isAllowed($text, $charset = 'UTF-8') {
+	/**
+	 * @param string $text
+	 * @param array  $addExceptions
+	 * @param string $charset
+	 *
+	 * @return bool
+	 */
+    public static function isAllowed(string $text, array $addExceptions = [], string $charset = 'UTF-8'): bool
+	{
         $original = $text;
-        self::filterText($text, $charset);
+        self::filterText($text, $addExceptions, $charset);
         return $original === $text;
     }
 
-    public static function filterText(&$text, $charset = 'UTF-8')
+	/**
+	 * @param string $text
+	 * @param array  $addExceptions
+	 * @param string $charset
+	 * @param bool   $getBadWords
+	 *
+	 * @return string
+	 */
+    public static function filterText(string &$text, array $addExceptions = [], string $charset = 'UTF-8'): string
     {
         $utf8 = 'UTF-8';
 
@@ -184,12 +208,14 @@ class ObsceneCensorRus {
         $m[1]=array_diff($m[1],$exclusion);
         */
 
+		$exceptions = array_merge($addExceptions, self::$exceptions);
+
         if ($c > 0) {
             for ($i = 0; $i < $c; $i++) {
                 $word = $m[1][$i];
                 $word = mb_strtolower($word, $utf8);
 
-                foreach (self::$exceptions as $x) {
+                foreach ($exceptions as $x) {
                     if (mb_strpos($word, $x) !== false) {
                         if (is_array(self::$logEx)) {
                             $t = &self::$logEx[$m[1][$i]];
@@ -234,4 +260,96 @@ class ObsceneCensorRus {
         }
     }
 
-} 
+	/**
+	 * @param string $text
+	 * @param array  $addExceptions
+	 * @param string $charset
+	 *
+	 * @return array
+	 */
+	public static function getBadWords(string $text, array $addExceptions = [], string $charset = 'UTF-8'): array
+	{
+		$utf8 = 'UTF-8';
+
+		if ($charset !== $utf8) {
+			$text = iconv($charset, $utf8, $text);
+		}
+
+		preg_match_all('/
+\b\d*(
+	\w*[' . self::$LT_P . '][' . self::$LT_I . self::$LT_E . '][' . self::$LT_Z . '][' . self::$LT_D . ']\w* # пизда
+|
+	(?:[^' . self::$LT_I . self::$LT_U . '\s]+|' . self::$LT_N . self::$LT_I . ')?(?<!стра)[' . self::$LT_H . '][' . self::$LT_U . '][' . self::$LT_YI . self::$LT_E . self::$LT_YA . self::$LT_YO . self::$LT_I . self::$LT_L . self::$LT_YU . '](?!иг)\w* # хуй; не пускает "подстрахуй", "хулиган"
+|
+	\w*[' . self::$LT_B . '][' . self::$LT_L . '](?:
+		[' . self::$LT_YA . ']+[' . self::$LT_D . self::$LT_T . ']?
+		|
+		[' . self::$LT_I . ']+[' . self::$LT_D . self::$LT_T . ']+
+		|
+		[' . self::$LT_I . ']+[' . self::$LT_A . ']+
+	)(?!х)\w* # бля, блядь; не пускает "бляха"
+|
+	(?:
+		\w*[' . self::$LT_YI . self::$LT_U . self::$LT_E . self::$LT_A . self::$LT_O . self::$LT_HS . self::$LT_SS . self::$LT_Y . self::$LT_YA . '][' . self::$LT_E . self::$LT_YO . self::$LT_YA . self::$LT_I . '][' . self::$LT_B . self::$LT_P . '](?!ы\b|ол)\w* # не пускает "еёбы", "наиболее", "наибольшее"...
+		|
+		[' . self::$LT_E . self::$LT_YO . '][' . self::$LT_B . ']\w*
+		|
+		[' . self::$LT_I . '][' . /*self::$LT_P .*/ self::$LT_B . '][' . self::$LT_A . ']\w+
+		|
+		[' . self::$LT_YI . '][' . self::$LT_O . '][' . self::$LT_B . self::$LT_P . ']\w*
+	) # ебать
+|
+	\w*[' . self::$LT_S . '][' . self::$LT_C . ']?[' . self::$LT_U . ']+(?:
+		[' . self::$LT_CH . ']*[' . self::$LT_K . ']+
+		|
+		[' . self::$LT_CH . ']+[' . self::$LT_K . ']*
+	)[' . self::$LT_A . self::$LT_O . ']\w* # сука
+|
+	\w*(?:
+		[' . self::$LT_P . '][' . self::$LT_I . self::$LT_E . '][' . self::$LT_D . '][' . self::$LT_A . self::$LT_O . self::$LT_E/* . self::$LT_I*/ . ']?[' . self::$LT_R . '](?!о)\w* # не пускает "Педро"
+		|
+		[' . self::$LT_P . '][' . self::$LT_E . '][' . self::$LT_D . '][' . self::$LT_E . self::$LT_I . ']?[' . self::$LT_G . self::$LT_K . ']
+	) # пидарас
+|
+	\w*[' . self::$LT_Z . '][' . self::$LT_A . self::$LT_O . '][' . self::$LT_L . '][' . self::$LT_U . '][' . self::$LT_P . ']\w* # залупа
+|
+	\w*[' . self::$LT_M . '][' . self::$LT_A . '][' . self::$LT_N . '][' . self::$LT_D . '][' . self::$LT_A . self::$LT_O . ']\w* # манда
+)\b
+/xu', $text, $m);
+
+		$c = count($m[1]);
+
+		$exceptions = array_merge($addExceptions, self::$exceptions);
+
+		if ($c > 0) {
+			for ($i = 0; $i < $c; $i++) {
+				$word = $m[1][$i];
+				$word = mb_strtolower($word, $utf8);
+
+				foreach ($exceptions as $x) {
+					if (mb_strpos($word, $x) !== false) {
+						if (is_array(self::$logEx)) {
+							$t = &self::$logEx[$m[1][$i]];
+							++$t;
+						}
+						$word = false;
+						unset($m[1][$i]);
+						break;
+					}
+				}
+
+				if ($word) {
+					$m[1][$i] = str_replace(array(' ', ',', ';', '.', '!', '-', '?', "\t", "\n"), '', $m[1][$i]);
+				}
+			}
+
+			$m[1] = array_unique($m[1]);
+
+			return $m[1];
+		} else {
+
+			return [];
+		}
+	}
+
+}
